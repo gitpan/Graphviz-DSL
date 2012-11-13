@@ -2,83 +2,106 @@ use strict;
 use warnings;
 use Test::More;
 
+use Graphviz::DSL::Node;
 use Graphviz::DSL::Edge;
 
 subtest 'constructor' => sub {
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo_bar');
+    my $edge = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo'),
+        end   => Graphviz::DSL::Node->new(id => 'bar'),
+    );
     ok $edge, 'constructor';
     isa_ok $edge, 'Graphviz::DSL::Edge';
 };
 
-subtest 'parse id parameter' => sub {
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo:a_bar:b_hoge');
-
-    is $edge->{id}, 'foo_bar_hoge', "'id' parameter";
-    is $edge->{start}, 'foo', "'start' parameter";
-    is $edge->{end}, 'bar', "'end' parameter";
-    is $edge->{seq}, 'hoge', "'seq' parameter";
-    is $edge->{start_port}, 'a', "'start_port' parameter";
-    is $edge->{end_port}, 'b', "'end_port' parameter";
-};
-
 subtest 'accessor' => sub {
+    my $start = Graphviz::DSL::Node->new(id => 'foo');
+    my $end   = Graphviz::DSL::Node->new(id => 'bar');
     my $attrs = { a => 100, b => 200 };
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo_bar', attributes => $attrs);
 
-    is $edge->id, 'foo_bar', "'id' accessor";
+    my $edge = Graphviz::DSL::Edge->new(
+        start => $start,
+        end   => $end,
+        attributes => $attrs
+    );
+
+    ok $edge->start == $start, "'start' accessor";
+    ok $edge->end   == $end, "'end' accessor";
     is_deeply $edge->attributes, $attrs, "'attributes' accessor";
-    is $edge->start_node_id, 'foo', "'start_node_id' accessor";
-    is $edge->end_node_id, 'bar', "'end_node_id' accessor";
 };
 
 subtest 'output to string' => sub {
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo:a_bar:b');
-    my $str = $edge->as_string;
-    is $edge->as_string, 'foo:a -> bar:b', 'as String with port';
+    my $edge = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo', port => 'a'),
+        end   => Graphviz::DSL::Node->new(id => 'bar', port => 'b'),
+    );
+    my $str = $edge->as_string(1);
+    is $str, '"foo":"a" -> "bar":"b"', 'as String with port';
 
-    my $edge_noport = Graphviz::DSL::Edge->new(id => 'foo_bar');
-    is $edge_noport->as_string, 'foo -> bar', 'as String without port';
-};
-
-subtest 'return nodes pair' => sub {
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo:a_bar:b');
-    is_deeply $edge->nodes, ['foo', 'bar'], 'nodes method';
+    my $edge_noport = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo'),
+        end   => Graphviz::DSL::Node->new(id => 'bar'),
+    );
+    is $edge_noport->as_string(1), '"foo" -> "bar"', 'as String without port';
+    is $edge_noport->as_string(0), '"foo" -- "bar"', 'as String without port(undirect)';
 };
 
 subtest 'update attributes' => sub {
     my $attrs = [[a => 100], [b => 200]];
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo_bar', attributes => $attrs);
+    my $edge = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo'),
+        end   => Graphviz::DSL::Node->new(id => 'bar'),
+        attributes => $attrs
+    );
 
     $edge->update_attributes([[a => 300], [c => 400]]);
     my $expected = [[a => 300], [b => 200], [c => 400]];
     is_deeply $edge->attributes, $expected, 'update attributes';
 };
 
-subtest 'update id info', sub {
-    my $edge = Graphviz::DSL::Edge->new(id => 'foo_bar');
-    $edge->update_id_info('foo:a_bar:b');
+subtest 'equal to the edge' => sub {
+    Graphviz::DSL::Node->new(id => 'foo', port => 'a', compass => 's');
+    Graphviz::DSL::Node->new(id => 'bar', port => 'b', compass => 'w');
 
-    is $edge->{start}, 'foo', "'start' parameter";
-    is $edge->{end}, 'bar', "'end' parameter";
-    is $edge->{start_port}, 'a', "update 'start_port' parameter";
-    is $edge->{end_port}, 'b', "update 'end_port' parameter";
+    my $edge = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo', port => 'a', compass => 's'),
+        end   => Graphviz::DSL::Node->new(id => 'bar', port => 'b', compass => 'w'),
+    );
+
+    ok $edge->equal_to($edge), 'equal to ID, port, compass';
+
+    my $edge2 = Graphviz::DSL::Edge->new(
+        start => Graphviz::DSL::Node->new(id => 'foo', port => 'a', compass => 'w'),
+        end   => Graphviz::DSL::Node->new(id => 'bar', port => 'b', compass => 'w'),
+    );
+    ok !$edge->equal_to($edge2), 'equal to ID, port, but not equal to port';
 };
 
 subtest 'invalid constructor' => sub {
     eval {
         Graphviz::DSL::Edge->new;
     };
-    like $@, qr/missing mandatory parameter 'id'/, "missing 'id' parameter";
+    like $@, qr/missing mandatory parameter 'start'/, "missing 'start' parameter";
 
     eval {
-        Graphviz::DSL::Edge->new(id => 'foo');
+        Graphviz::DSL::Edge->new(start => 'foo');
     };
-    like $@, qr/must contain underscore/, 'not contain underscore';
+    like $@, qr/should isa/, "invalid start parameter class";
 
     eval {
-        Graphviz::DSL::Edge->new(id => 'foo-');
+        Graphviz::DSL::Edge->new(
+            start => Graphviz::DSL::Node->new(id => 'foo'),
+        );
     };
-    like $@, qr/must not include other/, 'contain invalid character';
+    like $@, qr/missing mandatory parameter 'end'/, "missing 'end' parameter";
+
+    eval {
+        Graphviz::DSL::Edge->new(
+            start => Graphviz::DSL::Node->new(id => 'foo'),
+            end   => 'foo',
+        );
+    };
+    like $@, qr/should isa/, "invalid end parameter class";
 };
 
 done_testing;
