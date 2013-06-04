@@ -11,7 +11,7 @@ use Graphviz::DSL::Graph;
 use Graphviz::DSL::Edge;
 use Graphviz::DSL::Node;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 sub import {
     my $class = shift;
@@ -348,7 +348,7 @@ Syohei YOSHIDA E<lt>syohex@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2012- Syohei YOSHIDA
+Copyright 2013- Syohei YOSHIDA
 
 =head1 LICENSE
 
